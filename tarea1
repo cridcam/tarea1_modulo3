@@ -1,0 +1,251 @@
+import pymysql
+
+conn = pymysql.connect(host="db4free.net",
+                       user="nabla123",
+                       port=3306,
+                       password="maquina271",
+                       database="nabla_python",
+                       charset="utf8")
+
+with conn.cursor() as cursor:
+    cursor.execute("SHOW TABLES;")
+    tables = cursor.fetchall()
+for table in tables:
+    print(table)
+
+1. Realiza una consulta a la base de datos `nabla_python` por medio de `pymysql`: encuentra los tipos de `status` existentes dentro de la tabla `orders`.
+
+query = """
+SELECT status
+FROM orders
+"""
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    orders = cursor.fetchall()
+print(orders)
+
+2. Realiza una consulta a la base de datos `nabla_python` por medio de `pymysql`: encuentra los 10 clientes `customerName` que más han comprado en la tienda. La tabla resultante deberá estar ordenada de mayor a menor con `customerName` y `expenses` como la columna en dónde se encuentre el monto gastado en la tienda. (**hint**: considera las tablas `customers` y `payments`)
+
+with conn.cursor() as cursor:
+    cursor.execute("DESCRIBE customers")
+    descriptions = cursor.fetchall()
+
+for desc in descriptions:
+    print(desc)
+
+with conn.cursor() as cursor:
+    cursor.execute("DESCRIBE payments")
+    descriptions = cursor.fetchall()
+
+for desc in descriptions:
+    print(desc)
+
+query = """
+SELECT customerName, amount
+FROM customers
+JOIN payments
+ON payments.customerNumber = customers.customerNumber
+ORDER BY amount DESC;
+"""
+
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    orders = cursor.fetchmany(10)
+    
+for order in orders:
+    print(order)
+
+3.- Escribe una consulta que, para cada producto comprado muestre la clave del cliente `customerNumber` y el código del producto `productCode`. Obten los primeros 10 valores
+
+with conn.cursor() as cursor:
+    cursor.execute("DESCRIBE orders")
+    descriptions = cursor.fetchall()
+
+for desc in descriptions:
+    print(desc)
+
+with conn.cursor() as cursor:
+    cursor.execute("DESCRIBE orderdetails")
+    descriptions = cursor.fetchall()
+
+for desc in descriptions:
+    print(desc)
+
+with conn.cursor() as cursor:
+    cursor.execute("DESCRIBE customers")
+    descriptions = cursor.fetchall()
+
+for desc in descriptions:
+    print(desc)
+
+query = """
+SELECT customers.customerNumber, orderdetails.productCode
+FROM customers
+JOIN orders
+ON orders.customerNumber = customers.customerNumber
+JOIN orderdetails
+ON orderdetails.orderNumber=orders.orderNumber;
+"""
+
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    consulta = cursor.fetchmany(10)
+
+for consul in consulta:
+    print(consul)
+
+4. Con base al ejercicio anterior, reemplaza `productCode` por `productName`. **HINT**: El comando `WITH` nos ayuda a crear una tabla temporal:
+
+```SQL
+WITH t1 as (
+    SELECT ...
+    )
+SELECT t1.ci, t2.cj
+FROM t2
+JOIN t1 ON t1.cx = t2.cx
+```
+
+query = """
+WITH t1 as(
+    SELECT customers.customerNumber, orderdetails.productCode
+    FROM customers
+    JOIN orders
+    ON orders.customerNumber = customers.customerNumber
+    JOIN orderdetails
+    ON orderdetails.orderNumber=orders.orderNumber)
+    
+SELECT products.productName, t1.customerNumber
+FROM products
+JOIN t1
+ON t1.productCode=products.productCode;
+"""
+
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    consulta = cursor.fetchmany(10)
+
+for consul in consulta:
+    print(consul)
+
+5. Con base al ejercicio anterior, reemplaza `customerNumber` por `customerName`
+
+query = """
+WITH t1 as(
+    SELECT customers.customerName, orderdetails.productCode
+    FROM customers
+    JOIN orders
+    ON orders.customerNumber = customers.customerNumber
+    JOIN orderdetails
+    ON orderdetails.orderNumber=orders.orderNumber)
+    
+SELECT products.productName, t1.customerName
+FROM products
+JOIN t1
+ON t1.productCode=products.productCode;
+"""
+
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    consulta = cursor.fetchmany(10)
+
+for consul in consulta:
+    print(consul)
+
+6. Con base al ejercicio 3, encuentra el nombre del producto `productName` y cuantas unidades se han comprado de ese producto. Ordena los elementos de mayor a menor.
+
+query = """
+WITH t1 as(
+    SELECT customers.customerNumber, orderdetails.productCode
+    FROM customers
+    JOIN orders
+    ON orders.customerNumber = customers.customerNumber
+    JOIN orderdetails
+    ON orderdetails.orderNumber=orders.orderNumber)
+SELECT products.productName, COUNT(productName)
+FROM products
+JOIN t1
+ON t1.productCode=products.productCode
+GROUP BY productName
+ORDER BY COUNT(productName) DESC;
+"""
+
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    consulta = cursor.fetchall()
+
+for consul in consulta:
+    print(consul)
+
+7. Por medio de SQLAlchemy, define la tabla `orders` definida dentro de `nabla_python`
+
+```
++----------------+-------------+------+-----+---------+-------+
+| Field          | Type        | Null | Key | Default | Extra |
++----------------+-------------+------+-----+---------+-------+
+| orderNumber    | int(11)     | NO   | PRI | NULL    |       |
+| orderDate      | date        | NO   |     | NULL    |       |
+| requiredDate   | date        | NO   |     | NULL    |       |
+| shippedDate    | date        | YES  |     | NULL    |       |
+| status         | varchar(15) | NO   |     | NULL    |       |
+| comments       | text        | YES  |     | NULL    |       |
+| customerNumber | int(11)     | NO   | MUL | NULL    |       |
++----------------+-------------+------+-----+---------+-------+
+```
+
+
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Date
+
+Base = declarative_base()
+
+class Orders(Base):
+    __tablename__ = "orders"
+    orderNumber = Column(Integer, primary_key=True)
+    orderDate = Column(Date)
+    requiredDate = Column(Date)
+    shippedDate = Column(Date)
+    status = Column(String(15))
+    comments = Column(String(10), index=True)
+    customerNumber = Column(Integer, index=True)
+
+8. Por medio de SQLAlchemy, define la tabla `orderdetails` definida dentro de `nabla_python`
+
+```
++-----------------+---------------+------+-----+---------+-------+
+| Field           | Type          | Null | Key | Default | Extra |
++-----------------+---------------+------+-----+---------+-------+
+| orderNumber     | int(11)       | NO   | PRI | NULL    |       |
+| productCode     | varchar(15)   | NO   | PRI | NULL    |       |
+| quantityOrdered | int(11)       | NO   |     | NULL    |       |
+| priceEach       | decimal(10,2) | NO   |     | NULL    |       |
+| orderLineNumber | smallint(6)   | NO   |     | NULL    |       |
++-----------------+---------------+------+-----+---------+-------+
+```
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Date, SmallInteger, Date, Float
+
+Base = declarative_base()
+
+class Orders(Base):
+    __tablename__ = "ordersdetails"
+    orderNumber = Column(Integer, primary_key=True)
+    productCode = Column(String(15))
+    quantityOrdered = Column(Integer)
+    priceEach = Column(Float(10,2))
+    orderLineNumber = Column(SmallInteger)
+
+9. Realiza una consulta a la base de datos `nabla_python` por medio de `sqlalchemy`: encuentra los tipos de `status` existentes dentro de la tabla `orders`.
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+engstr = f"mysql+pymysql://nabla123:{"maquina271"}@db4free.net:3306/nabla_python"
+engine = create_engine(engstr)
+conn = engine.connect()
+Session = sessionmaker(bind=engine)
+sess = Session()
+
+for i in sess.query(Orders).limt(10):
+    print(i.status)
+
